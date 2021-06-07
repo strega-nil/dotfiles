@@ -146,27 +146,35 @@ class GitContributorBranch {
 		return "$($this.Username)/$($this.Branch)"
 	}
 
-	GitContributorBranch([String]$UsernameAndBranch) {
-		$lUsername,$lBranch = $UsernameAndBranch -split ':',2
-		if ($null -eq $lBranch -or $lBranch.Contains(':')) {
-			throw (New-Object `
-				-TypeName 'System.ArgumentOutOfRangeException' `
-				-ArgumentList 'UsernameAndBranch','UsernameAndBranch must be a username and branch separated by a colon')
+	GitContributorBranch([String]$lUsername, [String]$lBranch) {
+		if ($lUsername.Contains(':')) {
+			throw [System.ArgumentOutOfRangeException]::new(
+				'Username',
+				'Username must not contain a colon')
 		}
 		$this.Username = $lUsername
 		$this.Branch = $lBranch
 	}
+	GitContributorBranch([String]$UsernameAndBranch) {
+		$lUsername,$lBranch = $UsernameAndBranch -split ':',2
+		if ($null -eq $lBranch) {
+			throw [System.ArgumentOutOfRangeException]::new(
+				'UsernameAndBranch',
+				'UsernameAndBranch must be a username and branch separated by a colon')
+		}
+
+		# why can't I delegate here :(
+		$result = [GitContributorBranch]::new($lUsername, $lBranch)
+		$this.Username, $this.Branch = $result.Username, $result.Branch
+	}
 	static [GitContributorBranch]FromLocalBranch([String]$LocalBranch) {
 		$lUsername,$lBranch = $LocalBranch -split '/',2
-		if ($null -eq $lBranch -or $lUsername.Contains(':') -or $lBranch.Contains(':')) {
-			throw (New-Object `
-				-TypeName 'System.ArgumentOutOfRangeException' `
-				-ArgumentList 'LocalBranch','LocalBranch must be a username and branch separated by a slash')
+		if ($null -eq $lBranch) {
+			throw [System.ArgumentOutOfRangeException]::new(
+				'LocalBranch',
+				'LocalBranch must be a username and branch separated by a slash')
 		}
-		$result = New-Object -TypeName 'GitContributorBranch'
-		$result.Username = $lUsername
-		$result.Branch = $lBranch
-		return $result
+		return [GitContributorBranch]::new($lUsername, $lBranch)
 	}
 }
 
