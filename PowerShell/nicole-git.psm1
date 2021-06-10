@@ -11,7 +11,7 @@ function Invoke-GitCommand {
 
 	$result = git @Arguments
 	if (-not $?) {
-		throw
+		throw "git $($Arguments -join ' ') failed with error code: $LASTEXITCODE"
 	}
 	$result
 }
@@ -264,7 +264,7 @@ function Update-GitContributorBranch {
 		if ($Force) {
 			Invoke-GitCommand reset --hard FETCH_HEAD
 		} else {
-			Invoke-GitCommand merge --ff FETCH_HEAD
+			Invoke-GitCommand merge --ff-only FETCH_HEAD
 		}
 	}
 }
