@@ -232,7 +232,7 @@ function Open-GitContributorBranch {
 		[GitContributorBranch]$Branch
 	)
 
-	Invoke-GitCommand switch $Branch.LocalBranch()
+	Invoke-GitCommand switch $Branch.ToLocalBranch()
 }
 Set-Alias -Name 'opcb' -Value 'Open-GitContributorBranch'
 Export-ModuleMember `
