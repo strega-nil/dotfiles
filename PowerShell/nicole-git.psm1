@@ -114,7 +114,7 @@ function ConvertTo-GitRepoUrl {
 			}
 		}
 
-		if ($baseUrl -match '(?:https://|ssh://|git@)(?<dn>[-_.a-zA-Z0-9]+)[/:][-_/.a-zA-Z0-9]+/(?<repo>[-_a-zA-Z0-9]+)(?:.git)?/?') {
+		if ($baseUrl -match '^(https://|ssh://|git@)(?<dn>[-_.a-zA-Z0-9]+)[:/]([-_/.a-zA-Z0-9]+/)+(?<repo>[-_.a-zA-Z0-9]+)$') {
 			if ([String]::IsNullOrEmpty($Repository)) {
 				$Repository = $Matches['repo']
 			}
