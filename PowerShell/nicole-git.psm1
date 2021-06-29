@@ -105,9 +105,9 @@ function ConvertTo-GitRepoUrl {
 	)
 
 	if ([String]::IsNullOrEmpty($Repository) -or [String]::IsNullOrEmpty($DomainName)) {
-		$baseUrl = git remote get-url origin
+		$baseUrl = git remote get-url origin 2> $null
 		if (-not $?) {
-			$baseUrl = git remote get-url upstream
+			$baseUrl = git remote get-url upstream 2> $null
 			if (-not $?) {
 				Write-Error "Could not find repository name; please pass the Repository and DomainName parameters"
 				throw
