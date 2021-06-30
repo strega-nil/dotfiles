@@ -135,7 +135,7 @@ Export-ModuleMember `
 	-Alias 'ctru'
 
 <# NEED DOCS #>
-class GitContributorBranch {
+class GitBranch {
 	[String]$Username
 	[String]$Branch
 
@@ -146,7 +146,7 @@ class GitContributorBranch {
 		return "$($this.Username)/$($this.Branch)"
 	}
 
-	GitContributorBranch([String]$lUsername, [String]$lBranch) {
+	GitBranch([String]$lUsername, [String]$lBranch) {
 		if ($lUsername.Contains(':')) {
 			throw [System.ArgumentOutOfRangeException]::new(
 				'Username',
@@ -155,7 +155,7 @@ class GitContributorBranch {
 		$this.Username = $lUsername
 		$this.Branch = $lBranch
 	}
-	GitContributorBranch([String]$UsernameAndBranch) {
+	GitBranch([String]$UsernameAndBranch) {
 		$lUsername,$lBranch = $UsernameAndBranch -split ':',2
 		if ($null -eq $lBranch) {
 			throw [System.ArgumentOutOfRangeException]::new(
@@ -164,26 +164,26 @@ class GitContributorBranch {
 		}
 
 		# why can't I delegate here :(
-		$result = [GitContributorBranch]::new($lUsername, $lBranch)
+		$result = [GitBranch]::new($lUsername, $lBranch)
 		$this.Username, $this.Branch = $result.Username, $result.Branch
 	}
-	static [GitContributorBranch]FromLocalBranch([String]$LocalBranch) {
+	static [GitBranch]FromLocalBranch([String]$LocalBranch) {
 		$lUsername,$lBranch = $LocalBranch -split '/',2
 		if ($null -eq $lBranch) {
 			throw [System.ArgumentOutOfRangeException]::new(
 				'LocalBranch',
 				'LocalBranch must be a username and branch separated by a slash')
 		}
-		return [GitContributorBranch]::new($lUsername, $lBranch)
+		return [GitBranch]::new($lUsername, $lBranch)
 	}
 }
 
 <# NEED DOCS #>
-function New-GitContributorBranch {
+function New-GitBranch {
 	[CmdletBinding()]
 	Param(
 		[Parameter(Mandatory)]
-		[GitContributorBranch]$Branch,
+		[GitBranch]$Branch,
 		[Parameter()]
 		[String]$BaseBranch
 	)
@@ -194,23 +194,23 @@ function New-GitContributorBranch {
 		Invoke-GitCommand switch -c $Branch.ToLocalBranch() $BaseBranch
 	}
 }
-Set-Alias -Name 'ncb' -Value 'New-GitContributorBranch'
+Set-Alias -Name 'ngb' -Value 'New-GitBranch'
 Export-ModuleMember `
-	-Function 'New-GitContributorBranch' `
-	-Alias 'ncb'
+	-Function 'New-GitBranch' `
+	-Alias 'ngb'
 
 <# NEED DOCS #>
-function Remove-GitContributorBranch {
+function Remove-GitBranch {
 	[CmdletBinding()]
 	Param(
 		[Parameter()]
-		[GitContributorBranch]$Branch
+		[GitBranch]$Branch
 	)
 
 	$currentBranch = Invoke-GitCommand branch --show-current
 
 	if ($null -eq $Branch) {
-		$Branch = [GitContributorBranch]::FromLocalBranch($currentBranch)
+		$Branch = [GitBranch]::FromLocalBranch($currentBranch)
 	}
 
 	if ($Branch.ToLocalBranch() -eq $currentBranch) {
@@ -219,48 +219,48 @@ function Remove-GitContributorBranch {
 
 	Invoke-GitCommand branch -D $Branch.ToLocalBranch()
 }
-Set-Alias -Name 'rcb' -Value 'Remove-GitContributorBranch'
+Set-Alias -Name 'rgb' -Value 'Remove-GitBranch'
 Export-ModuleMember `
-	-Function 'Remove-GitContributorBranch' `
-	-Alias 'rcb'
+	-Function 'Remove-GitBranch' `
+	-Alias 'rgb'
 
 <# NEED DOCS #>
-function Open-GitContributorBranch {
+function Open-GitBranch {
 	[CmdletBinding()]
 	Param(
 		[Parameter(Mandatory)]
-		[GitContributorBranch]$Branch
+		[GitBranch]$Branch
 	)
 
 	Invoke-GitCommand switch $Branch.ToLocalBranch()
 }
-Set-Alias -Name 'opcb' -Value 'Open-GitContributorBranch'
+Set-Alias -Name 'opgb' -Value 'Open-GitBranch'
 Export-ModuleMember `
-	-Function 'Open-GitContributorBranch' `
-	-Alias 'opcb'
+	-Function 'Open-GitBranch' `
+	-Alias 'opgb'
 
 <# NEED DOCS #>
-function Update-GitContributorBranch {
+function Update-GitBranch {
 	[CmdletBinding()]
 	Param(
 		[Parameter()]
-		[GitContributorBranch]$Branch,
+		[GitBranch]$Branch,
 		[Parameter()]
 		[Switch]$Force
 	)
 
 	if ($null -eq $Branch) {
 		$currentBranch = Invoke-GitCommand branch --show-current
-		$Branch = [GitContributorBranch]::FromLocalBranch($currentBranch)
+		$Branch = [GitBranch]::FromLocalBranch($currentBranch)
 	}
 
 	Invoke-GitCommand fetch (ConvertTo-GitRepoUrl $Branch.Username) $Branch.Branch
 
 	$checkForBranch = Invoke-GitCommand branch --list $Branch.ToLocalBranch()
 	if ($null -eq $checkForBranch) {
-		New-GitContributorBranch $Branch FETCH_HEAD
+		New-GitBranch $Branch FETCH_HEAD
 	} else {
-		Open-GitContributorBranch $Branch
+		Open-GitBranch $Branch
 		if ($Force) {
 			Invoke-GitCommand reset --hard FETCH_HEAD
 		} else {
@@ -268,24 +268,24 @@ function Update-GitContributorBranch {
 		}
 	}
 }
-Set-Alias -Name 'udcb' -Value 'Update-GitContributorBranch'
+Set-Alias -Name 'udgb' -Value 'Update-GitBranch'
 Export-ModuleMember `
-	-Function 'Update-GitContributorBranch' `
-	-Alias 'udcb'
+	-Function 'Update-GitBranch' `
+	-Alias 'udgb'
 
 <# NEED DOCS #>
-function Publish-GitContributorBranch {
+function Publish-GitBranch {
 	[CmdletBinding()]
 	Param(
 		[Parameter()]
-		[GitContributorBranch]$Branch,
+		[GitBranch]$Branch,
 		[Parameter()]
 		[Switch]$Force
 	)
 
 	if ($null -eq $Branch) {
 		$currentBranch = Invoke-GitCommand branch --show-current
-		$Branch = [GitContributorBranch]::FromLocalBranch($currentBranch)
+		$Branch = [GitBranch]::FromLocalBranch($currentBranch)
 	}
 
 	if ($Force) {
@@ -294,27 +294,27 @@ function Publish-GitContributorBranch {
 		Invoke-GitCommand push (ConvertTo-GitRepoUrl $Branch.Username) "$($Branch.Username)/$($Branch.Branch):$($Branch.Branch)"
 	}
 }
-Set-Alias -Name 'pbcb' -Value 'Publish-GitContributorBranch'
+Set-Alias -Name 'pbgb' -Value 'Publish-GitBranch'
 Export-ModuleMember `
-	-Function 'Publish-GitContributorBranch' `
-	-Alias 'pbcb'
+	-Function 'Publish-GitBranch' `
+	-Alias 'pbgb'
 
 <# NEED DOCS #>
-function Unpublish-GitContributorBranch {
+function Unpublish-GitBranch {
 	[CmdletBinding()]
 	Param(
 		[Parameter()]
-		[GitContributorBranch]$Branch
+		[GitBranch]$Branch
 	)
 
 	if ([String]::IsNullOrEmpty($UsernameAndBranch)) {
 		$currentBranch = Invoke-GitCommand branch --show-current
-		$Branch = [GitContributorBranch]::FromLocalBranch($currentBranch)
+		$Branch = [GitBranch]::FromLocalBranch($currentBranch)
 	}
 
 	Invoke-GitCommand push -d (ConvertTo-GitRepoUrl $Branch.Username) $Branch.Branch
 }
-Set-Alias -Name 'ubcb' -Value 'Unpublish-GitContributorBranch'
+Set-Alias -Name 'ubgb' -Value 'Unpublish-GitBranch'
 Export-ModuleMember `
-	-Function 'Unpublish-GitContributorBranch' `
-	-Alias 'ubcb'
+	-Function 'Unpublish-GitBranch' `
+	-Alias 'ubgb'
