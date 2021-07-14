@@ -3,15 +3,9 @@ Set-StrictMode -Version 2
 
 # helper functions
 function Invoke-GitCommand {
-	[CmdletBinding()]
-	Param(
-		[Parameter(ValueFromRemainingArguments)]
-		[String[]]$Arguments
-	)
-
-	$result = git @Arguments
+	$result = git @args
 	if (-not $?) {
-		throw "git $($Arguments -join ' ') failed with error code: $LASTEXITCODE"
+		throw "git $($args -join ' ') failed with error code: $LASTEXITCODE"
 	}
 	$result
 }
@@ -307,11 +301,10 @@ function Unpublish-GitBranch {
 		[GitBranch]$Branch
 	)
 
-	if ([String]::IsNullOrEmpty($UsernameAndBranch)) {
+	if ($null -eq $Branch) {
 		$currentBranch = Invoke-GitCommand branch --show-current
 		$Branch = [GitBranch]::FromLocalBranch($currentBranch)
 	}
-
 	Invoke-GitCommand push -d (ConvertTo-GitRepoUrl $Branch.Username) $Branch.Branch
 }
 Set-Alias -Name 'ubgb' -Value 'Unpublish-GitBranch'
