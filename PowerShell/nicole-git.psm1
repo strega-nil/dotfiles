@@ -171,7 +171,6 @@ class GitBranch {
 		return [GitBranch]::new($lUsername, $lBranch)
 	}
 }
-
 Register-ArgumentCompleter -ParameterName 'Branch' -ScriptBlock {
 	Param(
 		[String]$CommandName,
@@ -183,16 +182,21 @@ Register-ArgumentCompleter -ParameterName 'Branch' -ScriptBlock {
 
 	$username,$branch = $WordToComplete -split ':',2
 	if ($null -eq $branch) {
-		$usernameAndBranch = $username
+		git branch '--format=%(refname:short)' | % {
+			if ($_.StartsWith("$username")) {
+				$username,$branch = $_ -split '/',2
+				if ($null -ne $branch) {
+					$username
+				}
+			}
+		}
 	} else {
-		$usernameAndBranch = "$username/$branch"
-	}
-
-	git branch '--format=%(refname:short)' | % {
-		if ($_.StartsWith($usernameAndBranch)) {
-			$username,$branch = $_ -split '/',2
-			if ($null -ne $branch) {
-				"${username}:${branch}"
+		git branch '--format=%(refname:short)' | % {
+			if ($_.StartsWith("$username/$branch")) {
+				$username,$branch = $_ -split '/',2
+				if ($null -ne $branch) {
+					"${username}:${branch}"
+				}
 			}
 		}
 	}
