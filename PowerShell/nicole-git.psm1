@@ -172,6 +172,32 @@ class GitBranch {
 	}
 }
 
+Register-ArgumentCompleter -ParameterName 'Branch' -ScriptBlock {
+	Param(
+		[String]$CommandName,
+		[String]$ParameterName,
+		[String]$WordToComplete,
+		[String]$CommandAst,
+		[String]$FakeBoundParameters
+	)
+
+	$username,$branch = $WordToComplete -split ':',2
+	if ($null -eq $branch) {
+		$usernameAndBranch = $username
+	} else {
+		$usernameAndBranch = "$username/$branch"
+	}
+
+	git branch '--format=%(refname:short)' | % {
+		if ($_.StartsWith($usernameAndBranch)) {
+			$username,$branch = $_ -split '/',2
+			if ($null -ne $branch) {
+				"${username}:${branch}"
+			}
+		}
+	}
+}
+
 <# NEED DOCS #>
 function New-GitBranch {
 	[CmdletBinding()]
@@ -192,6 +218,22 @@ Set-Alias -Name 'ngb' -Value 'New-GitBranch'
 Export-ModuleMember `
 	-Function 'New-GitBranch' `
 	-Alias 'ngb'
+
+Register-ArgumentCompleter -CommandName 'New-GitBranch' -ParameterName 'BaseBranch' -ScriptBlock {
+	Param(
+		[String]$CommandName,
+		[String]$ParameterName,
+		[String]$WordToComplete,
+		[String]$CommandAst,
+		[String]$FakeBoundParameters
+	)
+
+	git branch '--format=%(refname:short)' | % {
+		if ($_.StartsWith($WordToComplete)) {
+			$_
+		}
+	}
+}
 
 <# NEED DOCS #>
 function Remove-GitBranch {
