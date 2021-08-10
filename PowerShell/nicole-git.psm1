@@ -86,6 +86,33 @@ Export-ModuleMember `
 	-Function 'Add-GitChangesToHead' `
 	-Alias 'ach'
 
+function Get-GithubUpstreamInformation {
+	[CmdletBinding()]
+	Param()
+
+	$baseUrl = Invoke-GitCommand remote get-url upstream
+	if (-not $?) {
+		throw "Failed to get upstream remote name"
+	}
+
+	if ($baseUrl -notmatch '^https://github.com/(?<username>[-_/.a-zA-Z0-9]+)/(?<repo>[-_.a-zA-Z0-9]+)$') {
+		throw "upstream URL is not a github URL ($baseUrl)"
+	}
+
+	$username,$repo = $Matches.username,$Matches.repo
+
+	if ($repo -match '^(?<repo>[-_.a-zA-Z0-9]+)\.git$') {
+		$repo = $Matches.repo # remove trailing .git
+	}
+
+	[PSCustomObject]@{
+		username = $username
+		repo = $repo
+		url = $baseUrl
+	}
+}
+Export-ModuleMember -Function 'Get-GithubUpstreamInformation'
+
 <# NEED DOCS #>
 function ConvertTo-GitRepoUrl {
 	[CmdletBinding()]
@@ -127,6 +154,78 @@ Set-Alias -Name 'ctru' -Value 'ConvertTo-GitRepoUrl'
 Export-ModuleMember `
 	-Function 'ConvertTo-GitRepoUrl' `
 	-Alias 'ctru'
+
+<# NEED DOCS #>
+function Invoke-GithubGraphQLRequest {
+	[CmdletBinding(PositionalBinding=$False)]
+	Param(
+		[Parameter(Mandatory, Position=0)]
+		[String]$Query,
+		[Parameter()]
+		[System.Security.SecureString]$Pat
+	)
+
+	if ($null -eq $Pat -or $Pat.Length -eq 0) {
+		$Pat = (Get-Credential -UserName '<NONE>' -Title 'Personal Authentication Token').Password
+	}
+
+	$PlainPat = ConvertFrom-SecureString -AsPlainText $Pat
+	$Json = ConvertTo-Json -Depth 100 @{ 'query' = $query }
+
+	$request = Invoke-WebRequest `
+		-Method Post `
+		-Uri 'https://api.github.com/graphql' `
+		-Headers @{'Authorization' = "bearer $PlainPat" } `
+		-Body $Json
+	
+	$request.Content
+}
+Export-ModuleMember -Function 'Invoke-GithubGraphQLRequest'
+
+function Merge-GithubRollupPRs {
+	[CmdletBinding(PositionalBinding=$False)]
+	Param(
+		[Parameter(Mandatory)]
+		[String]$Date,
+		[Parameter(Mandatory, ValueFromRemainingArguments)]
+		[Int[]]$PullRequests
+	)
+
+	$repoInfo = Get-GithubUpstreamInformation
+
+	$pullRequestsQuery = ($PullRequests | % {
+	  "PR${_}: pullRequest(number: $_) {
+		  author {
+			  login
+			}
+			title
+		}"
+	}) -join "`n"
+
+	$pullRequestsRawData = Invoke-GithubGraphQLRequest "query {
+    repository(owner:`"$($repoInfo.username)`", name:`"$($repoInfo.repo)`") {
+			$pullRequestsQuery
+    }
+  }" | ConvertFrom-Json
+
+	$pullRequestsData = $PullRequests | % {
+		$prData = $pullRequestsRawData.data.repository."PR$_"
+		[PSCustomObject]@{
+		  number = $_
+			author = $prData.author.login
+			title = $prData.title
+		}
+	}
+
+	$pullRequestsData | % {
+		$number,$author,$title = $_.number,$_.author,$_.title
+		"Merging PR #$number" | Out-Host
+		Invoke-GitCommand fetch $repoInfo.url "pull/$number/head"
+		Invoke-GitCommand merge --squash FETCH_HEAD
+		Invoke-GitCommand commit --message "[rollup:$Date] PR #$number (@$author)`n`n$title"
+	}
+}
+Export-ModuleMember -Function 'Merge-GithubRollupPRs'
 
 <# NEED DOCS #>
 class GitBranch {
@@ -201,6 +300,7 @@ Register-ArgumentCompleter -ParameterName 'Branch' -ScriptBlock {
 		}
 	}
 }
+
 
 <# NEED DOCS #>
 function New-GitBranch {
@@ -286,6 +386,8 @@ function Update-GitBranch {
 		[Parameter()]
 		[GitBranch]$Branch,
 		[Parameter()]
+		[Switch]$OnlyFetch,
+		[Parameter()]
 		[Switch]$Force
 	)
 
@@ -294,7 +396,11 @@ function Update-GitBranch {
 		$Branch = [GitBranch]::FromLocalBranch($currentBranch)
 	}
 
-	Invoke-GitCommand fetch (ConvertTo-GitRepoUrl $Branch.Username) $Branch.Branch
+	Invoke-GitCommand fetch (ConvertTo-GitRepoUrl $Branch.Username) $Branch.Branch | Out-Host
+
+	if ($OnlyFetch) {
+		return 'FETCH_HEAD'
+	}
 
 	$checkForBranch = Invoke-GitCommand branch --list $Branch.ToLocalBranch()
 	if ($null -eq $checkForBranch) {
