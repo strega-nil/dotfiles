@@ -14,7 +14,8 @@ function Split-PathToArray {
 
 	if ($IsWindows) {
 		$Path -split '[\\/]'
-	} else {
+	}
+ else {
 		$Path -split '/'
 	}
 }
@@ -29,7 +30,8 @@ function Join-PathFromArray {
 
 	if ($IsWindows) {
 		$PathElements -join '\'
-	} else {
+	}
+ else {
 		$PathElements -join '/'
 	}
 }
@@ -45,7 +47,8 @@ function Prompt {
 	if ($path.Length -ne 0) {
 		if ($path.Length -lt 4) {
 			$prompt += Join-PathFromArray $drive @path
-		} else {
+		}
+		else {
 			$prompt += Join-PathFromArray $drive '..' $path[-3] $path[-2] $path[-1]
 		}
 	}
@@ -53,23 +56,42 @@ function Prompt {
 	"$prompt> "
 }
 
-if ($IsWindows) {
+if ($IsWindows -and -not (Test-Path Env:/SKIP_DEVELOPER_PROMPT)) {
+	if (Test-Path Env:/DEVELOPER_PROMPT_HOST_ARCHITECTURE) {
+		$hostArchToUse = "$Env:DEVELOPER_PROMPT_HOST_ARCHITECTURE"
+	} elseif ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64' -or $env:PROCESSOR_IDENTIFIER -match "ARMv[8,9] \(64-bit\)") {
+		$hostArchToUse = 'x64'
+	} else {
+		$hostArchToUse = 'x64'
+	}
+
+	if (Test-Path Env:/DEVELOPER_PROMPT_ARCHITECTURE) {
+		$archToUse = "$Env:DEVELOPER_PROMPT_ARCHITECTURE"
+	} elseif ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64' -or $env:PROCESSOR_IDENTIFIER -match "ARMv[8,9] \(64-bit\)") {
+		$archToUse = 'arm64'
+	} else {
+		$archToUse = 'x64'
+	}
+
 	$vswherePath = 'C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe'
 	if (Test-Path $vswherePath) {
-		$installed = & $vswherePath -format json | ConvertFrom-Json | Sort-Object 'installedVersion'
+		$installed = & $vswherePath -format json -prerelease | ConvertFrom-Json | Sort-Object 'installedVersion'
 		if ($null -ne $installed) {
 			$vs = $installed[-1]
 
 			$installPath = $vs.installationPath
-			Import-Module "$installPath\Common7\Tools\Microsoft.VisualStudio.DevShell.dll"
-			Enter-VsDevShell `
-				$vs.instanceId `
-				-DevCmdArguments '-arch=amd64 -host_arch=amd64' `
-				-SkipAutomaticLocation
-		} else {
+			cmd /c "`"$installPath\Common7\Tools\VsDevCmd.bat`" -host_arch=$hostArchToUse -arch=$archToUse -no_logo & set" | ForEach-Object {
+				$name, $value = $_ -split '='
+				if ($null -ne $name -and $null -ne $value) {
+					Set-Item "Env:/$name" -Value $value
+				}
+			}
+		}
+		else {
 			Write-Warning 'no installed versions of Visual Studio were found; not opening a developer shell.'
 		}
-	} else {
+	}
+ else {
 		Write-Warning 'vswhere was not found at its place; not opening a developer shell.'
 	}
 }
