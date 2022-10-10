@@ -75,7 +75,7 @@ if ($IsWindows -and -not (Test-Path Env:/SKIP_DEVELOPER_PROMPT)) {
 
 	$vswherePath = 'C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe'
 	if (Test-Path $vswherePath) {
-		$installed = & $vswherePath -format json -prerelease | ConvertFrom-Json | Sort-Object 'installedVersion'
+		$installed = & $vswherePath -products * -format json -prerelease | ConvertFrom-Json | Sort-Object 'installedVersion'
 		if ($null -ne $installed) {
 			$vs = $installed[-1]
 
