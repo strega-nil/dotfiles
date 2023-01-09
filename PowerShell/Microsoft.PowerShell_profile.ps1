@@ -91,7 +91,7 @@ if ($IsWindows -and -not (Test-Path Env:/SKIP_DEVELOPER_PROMPT)) {
 			Write-Warning 'no installed versions of Visual Studio were found; not opening a developer shell.'
 		}
 	}
- else {
+	else {
 		Write-Warning 'vswhere was not found at its place; not opening a developer shell.'
 	}
 }
