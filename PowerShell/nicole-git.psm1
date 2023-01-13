@@ -120,6 +120,9 @@ function ConvertTo-GitRepoUrl {
 		[Parameter(Mandatory)]
 		[String]$Username,
 		[Parameter()]
+		[ValidateSet('https', 'ssh')]
+		[String]$Kind,
+		[Parameter()]
 		[String]$Repository,
 		[Parameter()]
 		[String]$DomainName
@@ -135,12 +138,19 @@ function ConvertTo-GitRepoUrl {
 			}
 		}
 
-		if ($baseUrl -match '^(https://|ssh://|git@)(?<dn>[-_.a-zA-Z0-9]+)[:/]([-_/.a-zA-Z0-9]+/)+(?<repo>[-_.a-zA-Z0-9]+)$') {
+		if ($baseUrl -match '^(?<kind>https://|ssh://|git@)(?<dn>[-_.a-zA-Z0-9]+)[:/]([-_/.a-zA-Z0-9]+/)+(?<repo>[-_.a-zA-Z0-9]+)$') {
 			if ([String]::IsNullOrEmpty($Repository)) {
 				$Repository = $Matches['repo']
 			}
 			if ([String]::IsNullOrEmpty($DomainName)) {
 				$DomainName = $Matches['dn']
+			}
+			if ([String]::IsNullOrEmpty($Kind)) {
+				if ($Matches['kind'] -eq 'https://') {
+					$Kind = 'https'
+				} else {
+					$Kind = 'ssh'
+				}
 			}
 		} else {
 			Write-Error "Could not parse repository url `"$baseUrl`"; please pass the Repository parameter"
@@ -148,7 +158,15 @@ function ConvertTo-GitRepoUrl {
 		}
 	}
 
-	"https://$DomainName/$Username/$Repository"
+	if ([String]::IsNullOrEmpty($Kind)) {
+		$Kind = 'https'
+	}
+
+	if ($Kind -eq 'https') {
+		"https://$DomainName/$Username/$Repository"
+	} else {
+		"git@${DomainName}:$Username/$Repository"
+	}
 }
 Set-Alias -Name 'ctru' -Value 'ConvertTo-GitRepoUrl'
 Export-ModuleMember `
