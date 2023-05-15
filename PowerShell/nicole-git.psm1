@@ -86,33 +86,6 @@ Export-ModuleMember `
 	-Function 'Add-GitChangesToHead' `
 	-Alias 'ach'
 
-function Get-GithubUpstreamInformation {
-	[CmdletBinding()]
-	Param()
-
-	$baseUrl = Invoke-GitCommand remote get-url upstream
-	if (-not $?) {
-		throw "Failed to get upstream remote name"
-	}
-
-	if ($baseUrl -notmatch '^https://github.com/(?<username>[-_/.a-zA-Z0-9]+)/(?<repo>[-_.a-zA-Z0-9]+)$') {
-		throw "upstream URL is not a github URL ($baseUrl)"
-	}
-
-	$username,$repo = $Matches.username,$Matches.repo
-
-	if ($repo -match '^(?<repo>[-_.a-zA-Z0-9]+)\.git$') {
-		$repo = $Matches.repo # remove trailing .git
-	}
-
-	[PSCustomObject]@{
-		username = $username
-		repo = $repo
-		url = $baseUrl
-	}
-}
-Export-ModuleMember -Function 'Get-GithubUpstreamInformation'
-
 <# NEED DOCS #>
 function ConvertTo-GitRepoUrl {
 	[CmdletBinding()]
@@ -120,53 +93,14 @@ function ConvertTo-GitRepoUrl {
 		[Parameter(Mandatory)]
 		[String]$Username,
 		[Parameter()]
+		[ValidateSet('github', 'ado', 'vso')]
+		[String]$Service,
 		[ValidateSet('https', 'ssh')]
-		[String]$Kind,
+		[String]$Protocol,
 		[Parameter()]
-		[String]$Repository,
-		[Parameter()]
-		[String]$DomainName
+		[String]$Repository
 	)
 
-	if ([String]::IsNullOrEmpty($Repository) -or [String]::IsNullOrEmpty($DomainName)) {
-		$baseUrl = git remote get-url origin 2> $null
-		if (-not $?) {
-			$baseUrl = git remote get-url upstream 2> $null
-			if (-not $?) {
-				Write-Error "Could not find repository name; please pass the Repository and DomainName parameters"
-				throw
-			}
-		}
-
-		if ($baseUrl -match '^(?<kind>https://|ssh://|git@)(?<dn>[-_.a-zA-Z0-9]+)[:/]([-_/.a-zA-Z0-9]+/)+(?<repo>[-_.a-zA-Z0-9]+)$') {
-			if ([String]::IsNullOrEmpty($Repository)) {
-				$Repository = $Matches['repo']
-			}
-			if ([String]::IsNullOrEmpty($DomainName)) {
-				$DomainName = $Matches['dn']
-			}
-			if ([String]::IsNullOrEmpty($Kind)) {
-				if ($Matches['kind'] -eq 'https://') {
-					$Kind = 'https'
-				} else {
-					$Kind = 'ssh'
-				}
-			}
-		} else {
-			Write-Error "Could not parse repository url `"$baseUrl`"; please pass the Repository parameter"
-			throw
-		}
-	}
-
-	if ([String]::IsNullOrEmpty($Kind)) {
-		$Kind = 'https'
-	}
-
-	if ($Kind -eq 'https') {
-		"https://$DomainName/$Username/$Repository"
-	} else {
-		"git@${DomainName}:$Username/$Repository"
-	}
 }
 Set-Alias -Name 'ctru' -Value 'ConvertTo-GitRepoUrl'
 Export-ModuleMember `
@@ -174,81 +108,9 @@ Export-ModuleMember `
 	-Alias 'ctru'
 
 <# NEED DOCS #>
-function Invoke-GithubGraphQLRequest {
-	[CmdletBinding(PositionalBinding=$False)]
-	Param(
-		[Parameter(Mandatory, Position=0)]
-		[String]$Query,
-		[Parameter()]
-		[System.Security.SecureString]$Pat
-	)
-
-	if ($null -eq $Pat -or $Pat.Length -eq 0) {
-		$Pat = (Get-Credential -UserName '<NONE>' -Title 'Personal Authentication Token').Password
-	}
-
-	$PlainPat = ConvertFrom-SecureString -AsPlainText $Pat
-	$Json = ConvertTo-Json -Depth 100 @{ 'query' = $query }
-
-	$request = Invoke-WebRequest `
-		-Method Post `
-		-Uri 'https://api.github.com/graphql' `
-		-Headers @{'Authorization' = "bearer $PlainPat" } `
-		-Body $Json
-	
-	$request.Content
-}
-Export-ModuleMember -Function 'Invoke-GithubGraphQLRequest'
-
-function Merge-GithubRollupPRs {
-	[CmdletBinding(PositionalBinding=$False)]
-	Param(
-		[Parameter(Mandatory)]
-		[String]$Date,
-		[Parameter(Mandatory, ValueFromRemainingArguments)]
-		[Int[]]$PullRequests
-	)
-
-	$repoInfo = Get-GithubUpstreamInformation
-
-	$pullRequestsQuery = ($PullRequests | % {
-	  "PR${_}: pullRequest(number: $_) {
-		  author {
-			  login
-			}
-			title
-		}"
-	}) -join "`n"
-
-	$pullRequestsRawData = Invoke-GithubGraphQLRequest "query {
-    repository(owner:`"$($repoInfo.username)`", name:`"$($repoInfo.repo)`") {
-			$pullRequestsQuery
-    }
-  }" | ConvertFrom-Json
-
-	$pullRequestsData = $PullRequests | % {
-		$prData = $pullRequestsRawData.data.repository."PR$_"
-		[PSCustomObject]@{
-		  number = $_
-			author = $prData.author.login
-			title = $prData.title
-		}
-	}
-
-	$pullRequestsData | % {
-		$number,$author,$title = $_.number,$_.author,$_.title
-		"Merging PR #$number" | Out-Host
-		Invoke-GitCommand fetch $repoInfo.url "pull/$number/head"
-		Invoke-GitCommand merge --squash FETCH_HEAD
-		Invoke-GitCommand commit --message "[rollup:$Date] PR #$number (@$author)`n`n$title"
-	}
-}
-Export-ModuleMember -Function 'Merge-GithubRollupPRs'
-
-<# NEED DOCS #>
 class GitBranch {
 	[String]$Username
-	[String]$Branch
+	[String]$BranchName
 
 	[String]ToString() {
 		return "$($this.Username):$($this.Branch)"
@@ -319,6 +181,79 @@ Register-ArgumentCompleter -ParameterName 'Branch' -ScriptBlock {
 	}
 }
 
+class GitRepo {
+	<# https://github.com/microsoft/stl = {
+			protocol = https
+			service = github
+			upstream = microsoft
+			repository = stl
+		}
+
+		https://dev.azure.com/devdiv/DevDiv/_git/msvc = {
+			protocol = https
+			service = ado
+			upstream = devdiv/DevDiv
+			repository = msvc
+		}
+	#> 
+	[String]$Protocol # https, ssh
+	[String]$Service # github, ado
+	[String]$Upstream
+	[String]$Repository
+
+	GitRepo([String]$Url) {
+		if ($Url -match '^https://github.com/(?<upstream>[-_.a-zA-Z0-9]+)/(?<repo>[-_.a-zA-Z0-9]+)$') {
+			$this.Service = 'github'
+			$this.Protocol = 'https'
+		} elseif ($Url -match '^git@github.com:(?<upstream>[-_.a-zA-Z0-9]+)/(?<repo>[-_.a-zA-Z0-9]+)$') {
+			$this.Service = 'github'
+			$this.Protocol = 'ssh'
+			# https://devdiv@dev.azure.com/devdiv/DevDiv/_git/AddressSanitizer
+		} elseif ($Url -match '^https://(.*@)?dev.azure.com/(?<upstream>[-_./a-zA-Z0-9]+)/_git/(?<repo>[-_.a-zA-Z0-9]+)$') {
+			$this.Service = 'ado'
+			$this.Protocol = 'https'
+			# git@ssh.dev.azure.com:v3/devdiv/DevDiv/AddressSanitizer
+		} elseif ($Url -match '^git@ssh.dev.azure.com:v3/(?<upstream>[-_./a-zA-Z0-9]+)/(?<repo>[-_.a-zA-Z0-9]+)$') {
+			$this.Service = 'ado'
+			$this.Protocol = 'ssh'
+		} else {
+			Write-Error "Could not parse repository url `"$Url`""
+			throw
+		}
+		$this.Upstream = $Matches['upstream']
+		$this.Repository = $Matches['repo']
+
+		if ($this.Repository -match '^(.*)\.git$') {
+			$this.Repository = $Matches[1] # remove trailing .git
+		}
+	}
+
+	[String]ToString() {
+		if ($this.Service -eq 'github') {
+			if ($this.Protocol -eq 'https') {
+				return "https://github.com/$($this.Upstream)/$($this.Repository)"
+			} elseif ($this.Protocol -eq 'ssh') {
+				return "git@github.com:$($this.Upstream)/$($this.Repository)"
+			} else {
+				Write-Error "Invalid protocol '$($this.Protocol)' - expected https, ssh"
+				throw
+			}
+		} elseif ($this.Service -eq 'ado') {
+			if ($this.Protocol -eq 'https') {
+				$username, $rest = $this.Upstream -split '/',2
+				return "https://$username@dev.azure.com/$($this.Upstream)/_git/$($this.Repository)"
+			} elseif ($this.Protocol -eq 'ssh') {
+				return "git@ssh.dev.azure.com:v3/$($this.Upstream)/$($this.Repository)"
+			} else {
+				Write-Error "Invalid protocol '$($this.Protocol)' - expected https, ssh"
+				throw
+			}
+		} else {
+			Write-Error "Invalid service '$($this.Service)' - expected github, ado"
+			throw
+		}
+	}
+}
 
 <# NEED DOCS #>
 function New-GitBranch {
