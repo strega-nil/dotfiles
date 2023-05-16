@@ -87,67 +87,57 @@ Export-ModuleMember `
 	-Alias 'ach'
 
 <# NEED DOCS #>
-function ConvertTo-GitRepoUrl {
-	[CmdletBinding()]
-	Param(
-		[Parameter(Mandatory)]
-		[String]$Username,
-		[Parameter()]
-		[ValidateSet('github', 'ado', 'vso')]
-		[String]$Service,
-		[ValidateSet('https', 'ssh')]
-		[String]$Protocol,
-		[Parameter()]
-		[String]$Repository
-	)
-
-}
-Set-Alias -Name 'ctru' -Value 'ConvertTo-GitRepoUrl'
-Export-ModuleMember `
-	-Function 'ConvertTo-GitRepoUrl' `
-	-Alias 'ctru'
-
-<# NEED DOCS #>
 class GitBranch {
 	[String]$Username
 	[String]$BranchName
 
 	[String]ToString() {
-		return "$($this.Username):$($this.Branch)"
+		if ([String]::IsNullOrEmpty($this.Username)) {
+			return "$($this.BranchName)"
+		} else {
+			return "$($this.Username):$($this.BranchName)"
+		}
 	}
 	[String]ToLocalBranch() {
-		return "$($this.Username)/$($this.Branch)"
+		if ([String]::IsNullOrEmpty($this.Username)) {
+			return "$($this.BranchName)"
+		} else {
+			return "dev/$($this.Username)/$($this.BranchName)"
+		}
+	}
+	[bool]HasUsername() {
+		return -not [String]::IsNullOrEmpty($this.Username)
 	}
 
-	GitBranch([String]$lUsername, [String]$lBranch) {
-		if ($lUsername.Contains(':')) {
+	GitBranch([String]$lUsername, [String]$lBranchName) {
+		if ($null -ne $lUsername -and $lUsername.Contains(':')) {
 			throw [System.ArgumentOutOfRangeException]::new(
 				'Username',
 				'Username must not contain a colon')
 		}
 		$this.Username = $lUsername
-		$this.Branch = $lBranch
+		$this.BranchName = $lBranchName
 	}
 	GitBranch([String]$UsernameAndBranch) {
-		$lUsername,$lBranch = $UsernameAndBranch -split ':',2
-		if ($null -eq $lBranch) {
-			throw [System.ArgumentOutOfRangeException]::new(
-				'UsernameAndBranch',
-				'UsernameAndBranch must be a username and branch separated by a colon')
+		$lUsername,$lBranchName = $UsernameAndBranch -split ':',2
+		if ($null -eq $lBranchName) {
+			$lBranchName = $lUsername
+			$lUsername = $null
 		}
 
 		# why can't I delegate here :(
-		$result = [GitBranch]::new($lUsername, $lBranch)
-		$this.Username, $this.Branch = $result.Username, $result.Branch
+		$result = [GitBranch]::new($lUsername, $lBranchName)
+		$this.Username, $this.BranchName = $result.Username, $result.BranchName
 	}
 	static [GitBranch]FromLocalBranch([String]$LocalBranch) {
-		$lUsername,$lBranch = $LocalBranch -split '/',2
-		if ($null -eq $lBranch) {
-			throw [System.ArgumentOutOfRangeException]::new(
-				'LocalBranch',
-				'LocalBranch must be a username and branch separated by a slash')
+		if ($LocalBranch -match '^dev/([^/]+)/(.+)$') {
+			$lUsername = $Matches[1]
+			$lBranchName = $Matches[2]
+		} else {
+			$lUsername = $null
+			$lBranchName = $LocalBranch
 		}
-		return [GitBranch]::new($lUsername, $lBranch)
+		return [GitBranch]::new($lUsername, $lBranchName)
 	}
 }
 Register-ArgumentCompleter -ParameterName 'Branch' -ScriptBlock {
@@ -217,8 +207,7 @@ class GitRepo {
 			$this.Service = 'ado'
 			$this.Protocol = 'ssh'
 		} else {
-			Write-Error "Could not parse repository url `"$Url`""
-			throw
+			throw "Could not parse repository url `"$Url`""
 		}
 		$this.Upstream = $Matches['upstream']
 		$this.Repository = $Matches['repo']
@@ -228,29 +217,55 @@ class GitRepo {
 		}
 	}
 
+	[String]ProtocolAndService() {
+		if ($this.Service -notin 'github','ado') {
+			throw "Invalid service '$($this.Service)' - expected github, ado"
+		} elseif ($this.Protocol -notin 'https','ssh') {
+			throw "Invalid protocol '$($this.Protocol)' - expected https, ssh"
+		}
+		return "$($this.Service):$($this.Protocol)"
+	}
+
 	[String]ToString() {
-		if ($this.Service -eq 'github') {
-			if ($this.Protocol -eq 'https') {
-				return "https://github.com/$($this.Upstream)/$($this.Repository)"
-			} elseif ($this.Protocol -eq 'ssh') {
-				return "git@github.com:$($this.Upstream)/$($this.Repository)"
-			} else {
-				Write-Error "Invalid protocol '$($this.Protocol)' - expected https, ssh"
-				throw
-			}
+		$pas = $this.ProtocolAndService()
+		if ($pas -eq 'github:https') {
+			return "https://github.com/$($this.Upstream)/$($this.Repository)"
+		} elseif ($pas -eq 'github:ssh') {
+			return "git@github.com:$($this.Upstream)/$($this.Repository)"
+		} elseif ($pas -eq 'ado:https') {
+			$username, $rest = $this.Upstream -split '/',2
+			return "https://$username@dev.azure.com/$($this.Upstream)/_git/$($this.Repository)"
+		} elseif ($pas -eq 'ado:ssh') {
+			return "git@ssh.dev.azure.com:v3/$($this.Upstream)/$($this.Repository)"
+		} else {
+			throw "[GitRepo]::ToString() internal error: $pas"
+		}
+	}
+
+	[String]UrlForBranch([GitBranch]$Branch) {
+		$pas = $this.ProtocolAndService()
+		if (-not $Branch.HasUsername() -or $this.Service -eq 'ado') {
+			return $this.ToString()
+		} elseif ($pas -eq 'github:https') {
+			return "https://github.com/$($Branch.Username)/$($this.Repository)"
+		} elseif ($pas -eq 'github:ssh') {
+			return "git@github.com:$($Branch.Username)/$($this.Repository)"
+		} else {
+			throw "[GitRepo]::UrlForBranch() internal error: $pas"
+		}
+	}
+
+	[String]BranchNameForBranch([GitBranch]$Branch) {
+		if (-not $Branch.HasUsername() -or $this.Service -eq 'github') {
+			return $Branch.BranchName
 		} elseif ($this.Service -eq 'ado') {
-			if ($this.Protocol -eq 'https') {
-				$username, $rest = $this.Upstream -split '/',2
-				return "https://$username@dev.azure.com/$($this.Upstream)/_git/$($this.Repository)"
-			} elseif ($this.Protocol -eq 'ssh') {
-				return "git@ssh.dev.azure.com:v3/$($this.Upstream)/$($this.Repository)"
+			if ($this.Upstream -match '^microsoft/') {
+				return "user/$($Branch.Username)/$($Branch.BranchName)"
 			} else {
-				Write-Error "Invalid protocol '$($this.Protocol)' - expected https, ssh"
-				throw
+				return "dev/$($Branch.Username)/$($Branch.BranchName)"
 			}
 		} else {
-			Write-Error "Invalid service '$($this.Service)' - expected github, ado"
-			throw
+			throw "Invalid service '$($this.Service)' - expected github, ado"
 		}
 	}
 }
@@ -332,6 +347,42 @@ Export-ModuleMember `
 	-Function 'Open-GitBranch' `
 	-Alias 'opgb'
 
+function Get-CurrentGitBranch {
+	[CmdletBinding()]
+	Param()
+
+	[GitBranch]::FromLocalBranch((Invoke-GitCommand branch --show-current))
+}
+Set-Alias -Name 'gcgb' -Value 'Get-CurrentGitBranch'
+Export-ModuleMember `
+	-Function 'Get-CurrentGitBranch' `
+	-Alias 'gcgb'
+
+function Get-CurrentGitRepo {
+	[CmdletBinding()]
+	Param(
+		[Parameter()]
+		[String]$RemoteName
+	)
+
+	if ([String]::IsNullOrEmpty($RemoteName)) {
+		[String[]]$remotes = git remote | Where-Object {
+			$_ -in 'origin','upstream'
+		}
+		if ($null -eq $remotes) {
+			throw "Unknown default remote name - expected one of origin, upstream"
+		}
+
+		$RemoteName = $remotes[0]
+	}
+
+	[GitRepo]::new((Invoke-GitCommand remote get-url $RemoteName))
+}
+Set-Alias -Name 'gcgr' -Value 'Get-CurrentGitRepo'
+Export-ModuleMember `
+	-Function 'Get-CurrentGitRepo' `
+	-Alias 'gcgr'
+
 <# NEED DOCS #>
 function Update-GitBranch {
 	[CmdletBinding()]
@@ -345,11 +396,11 @@ function Update-GitBranch {
 	)
 
 	if ($null -eq $Branch) {
-		$currentBranch = Invoke-GitCommand branch --show-current
-		$Branch = [GitBranch]::FromLocalBranch($currentBranch)
+		$Branch = Get-CurrentGitBranch
 	}
 
-	Invoke-GitCommand fetch (ConvertTo-GitRepoUrl $Branch.Username) $Branch.Branch | Out-Host
+	$repo = Get-CurrentGitRepo
+	Invoke-GitCommand fetch $repo.UrlForBranch($Branch) $repo.BranchNameForBranch($Branch) | Out-Host
 
 	if ($OnlyFetch) {
 		return 'FETCH_HEAD'
@@ -383,14 +434,14 @@ function Publish-GitBranch {
 	)
 
 	if ($null -eq $Branch) {
-		$currentBranch = Invoke-GitCommand branch --show-current
-		$Branch = [GitBranch]::FromLocalBranch($currentBranch)
+		$Branch = Get-CurrentGitBranch
 	}
 
+	$repo = Get-CurrentGitRepo
 	if ($Force) {
-		Invoke-GitCommand push --force (ConvertTo-GitRepoUrl $Branch.Username) "$($Branch.Username)/$($Branch.Branch):$($Branch.Branch)"
+		Invoke-GitCommand push --force $repo.UrlForBranch($Branch) "$($Branch.ToLocalBranch()):$($repo.BranchNameForBranch($Branch))"
 	} else {
-		Invoke-GitCommand push (ConvertTo-GitRepoUrl $Branch.Username) "$($Branch.Username)/$($Branch.Branch):$($Branch.Branch)"
+		Invoke-GitCommand push $repo.UrlForBranch($Branch) "$($Branch.ToLocalBranch()):$($repo.BranchNameForBranch($Branch))"
 	}
 }
 Set-Alias -Name 'pbgb' -Value 'Publish-GitBranch'
@@ -407,12 +458,12 @@ function Unpublish-GitBranch {
 	)
 
 	if ($null -eq $Branch) {
-		$currentBranch = Invoke-GitCommand branch --show-current
-		$Branch = [GitBranch]::FromLocalBranch($currentBranch)
+		$Branch = Get-CurrentGitBranch
 	}
-	Invoke-GitCommand push -d (ConvertTo-GitRepoUrl $Branch.Username) $Branch.Branch
+	$repo = Get-CurrentGitRepo
+	Invoke-GitCommand push -d $repo.UrlForBranch($Branch) $repo.BranchNameForBranch($Branch)
 }
-Set-Alias -Name 'ubgb' -Value 'Unpublish-GitBranch'
+Set-Alias -Name 'upgb' -Value 'Unpublish-GitBranch'
 Export-ModuleMember `
 	-Function 'Unpublish-GitBranch' `
-	-Alias 'ubgb'
+	-Alias 'upgb'
