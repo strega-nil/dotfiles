@@ -140,36 +140,6 @@ class GitBranch {
 		return [GitBranch]::new($lUsername, $lBranchName)
 	}
 }
-Register-ArgumentCompleter -ParameterName 'Branch' -ScriptBlock {
-	Param(
-		[String]$CommandName,
-		[String]$ParameterName,
-		[String]$WordToComplete,
-		[String]$CommandAst,
-		[String]$FakeBoundParameters
-	)
-
-	$username,$branch = $WordToComplete -split ':',2
-	if ($null -eq $branch) {
-		git branch '--format=%(refname:short)' | % {
-			if ($_.StartsWith("$username")) {
-				$username,$branch = $_ -split '/',2
-				if ($null -ne $branch) {
-					$username
-				}
-			}
-		}
-	} else {
-		git branch '--format=%(refname:short)' | % {
-			if ($_.StartsWith("$username/$branch")) {
-				$username,$branch = $_ -split '/',2
-				if ($null -ne $branch) {
-					"${username}:${branch}"
-				}
-			}
-		}
-	}
-}
 
 class GitRepo {
 	<# https://github.com/microsoft/stl = {
@@ -185,7 +155,7 @@ class GitRepo {
 			upstream = devdiv/DevDiv
 			repository = msvc
 		}
-	#> 
+	#>
 	[String]$Protocol # https, ssh
 	[String]$Service # github, ado
 	[String]$Upstream
@@ -290,22 +260,6 @@ Set-Alias -Name 'ngb' -Value 'New-GitBranch'
 Export-ModuleMember `
 	-Function 'New-GitBranch' `
 	-Alias 'ngb'
-
-Register-ArgumentCompleter -CommandName 'New-GitBranch' -ParameterName 'BaseBranch' -ScriptBlock {
-	Param(
-		[String]$CommandName,
-		[String]$ParameterName,
-		[String]$WordToComplete,
-		[String]$CommandAst,
-		[String]$FakeBoundParameters
-	)
-
-	git branch '--format=%(refname:short)' | % {
-		if ($_.StartsWith($WordToComplete)) {
-			$_
-		}
-	}
-}
 
 <# NEED DOCS #>
 function Remove-GitBranch {

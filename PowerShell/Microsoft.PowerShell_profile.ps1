@@ -1,9 +1,7 @@
-#Requires -Module posh-git
 #Requires -Version 7
 using module "./nicole-git.psm1"
 
 Set-StrictMode -Version 2
-Import-Module -Name 'posh-git'
 
 function Split-PathToArray {
 	[CmdletBinding()]
