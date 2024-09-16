@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleIdentifier</key>
+	<string>org.sil.ukelele.keyboardlayout.norsk-altgr</string>
+	<key>CFBundleName</key>
+	<string>norsk-altgr</string>
+	<key>CFBundleVersion</key>
+	<string></string>
+	<key>KLInfo_Norwegian - AltGr</key>
+	<dict>
+		<key>TICapsLockLanguageSwitchCapable</key>
+		<false/>
+		<key>TISIconIsTemplate</key>
+		<false/>
+		<key>TISInputSourceID</key>
+		<string>org.sil.ukelele.keyboardlayout.norsk-altgr.norwegian-altgr</string>
+		<key>TISIntendedLanguage</key>
+		<string>nb</string>
+	</dict>
+</dict>
+</plist>
