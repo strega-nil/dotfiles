@@ -18,6 +18,8 @@ vim.opt.wrap = true
 nmap('j', 'gj')
 nmap('k', 'gk')
 
+nmap('Q', ':tabclose<CR>')
+
 vim.opt.hlsearch = true
 nmap(' ', ':nohlsearch<CR>')
 
@@ -73,9 +75,9 @@ require('lazy').setup({
 		config = function()
 			nmap('<C-y>', ':BufferPick<CR>')
 
-			nmap('bq', ':BufferClose<CR>')
 			nmap('bd', ':BufferClose<CR>')
-			nmap('bQ', ':BufferClose!<CR>')
+			nmap('bq', ':BufferClose!<CR>')
+			nmap('bD', ':BufferCloseAllButCurrent<CR>')
 			nmap('bu', ':BufferRestore<CR>')
 			nmap('bn', ':BufferNext<CR>')
 			nmap('bN', ':BufferMoveNext<CR>')
@@ -112,22 +114,33 @@ require('lazy').setup({
 						}
 					}
 				},
-				follow_current_file = true,
 				hijack_netrw_behavior = "open_current",
 				window = {
 					mappings = {
 						["P"] = { "toggle_preview", config = { use_float = false, use_image_nvim = true } },
-					}
+					},
 				},
 			})
-			nmap('<C-t>', ':Neotree<CR>')
+			nmap('<C-t>', ':Neotree reveal<CR>')
 		end
+	},
+	{
+		'sindrets/diffview.nvim',
+		config = function()
+			nmap('<C-g>', ':DiffviewOpen<CR>')
+		end,
 	},
 	{
 		'mattia72/vim-ripgrep'
 	},
 	{
 		'sheerun/vim-polyglot'
+	},
+	{
+		'tadmccorkle/markdown.nvim',
+		config = function ()
+			require("markdown").setup()
+		end
 	},
 	{
 		'f-person/auto-dark-mode.nvim',
@@ -144,6 +157,7 @@ require('lazy').setup({
 		}
 	}
 },
+
 {
 	ui = {
 		icons = {
