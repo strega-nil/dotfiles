@@ -8,14 +8,25 @@
 	<string>norsk-altgr</string>
 	<key>CFBundleVersion</key>
 	<string></string>
-	<key>KLInfo_Norwegian - AltGr</key>
+	<key>KLInfo_Norwegian AltGr v0.3.1</key>
 	<dict>
 		<key>TICapsLockLanguageSwitchCapable</key>
 		<false/>
 		<key>TISIconIsTemplate</key>
 		<false/>
 		<key>TISInputSourceID</key>
-		<string>org.sil.ukelele.keyboardlayout.norsk-altgr.norwegian-altgr</string>
+		<string>org.sil.ukelele.keyboardlayout.norsk-altgr.norwegianaltgrv0.3.1</string>
+		<key>TISIntendedLanguage</key>
+		<string>nb</string>
+	</dict>
+	<key>KLInfo_Norwegian AltGr v0.3.1 (ANSI)</key>
+	<dict>
+		<key>TICapsLockLanguageSwitchCapable</key>
+		<false/>
+		<key>TISIconIsTemplate</key>
+		<false/>
+		<key>TISInputSourceID</key>
+		<string>org.sil.ukelele.keyboardlayout.norsk-altgr.norwegianaltgrv0.3.1(ansi)</string>
 		<key>TISIntendedLanguage</key>
 		<string>nb</string>
 	</dict>
