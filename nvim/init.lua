@@ -53,6 +53,12 @@ function config_solarized()
   end
 end
 
+function config_telescope()
+  local builtin = require('telescope.builtin')
+  nmap('<C-p>', builtin.find_files)
+  nmap('<C-u>', builtin.live_grep)
+end
+
 function config_barbar()
   nmap('<C-y>', ':BufferPick<CR>')
   nmap('bd', ':BufferClose<CR>')
@@ -103,11 +109,14 @@ require('lazy').setup(
   { 'f-person/auto-dark-mode.nvim',
     opts = auto_dark_mode_opts, },
 
-  { 'ctrlpvim/ctrlp.vim' },
-  { 'mattia72/vim-ripgrep' },
+  { 'nvim-telescope/telescope.nvim',
+    tag = '0.1.8',
+    dependencies =
+    { 'nvim-lua/plenary.nvim' },
+    config = config_telescope },
   { 'romgrk/barbar.nvim',
-    dependencies = {
-      'nvim-tree/nvim-web-devicons', },
+    dependencies =
+    { 'nvim-tree/nvim-web-devicons' },
     config = config_barbar, },
   { 'nvim-neo-tree/neo-tree.nvim',
     dependencies = {
