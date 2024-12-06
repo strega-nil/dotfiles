@@ -1,9 +1,13 @@
-function nmap(shortcut, command)
+---@diagnostic disable:undefined-global
+
+local function nmap(shortcut, command)
   vim.keymap.set('n', shortcut, command, { silent = true })
 end
 
 vim.g.loaded_netrw = 1
 vim.g.loaded_netrwPlugin = 1
+
+vim.opt.clipboard = 'unnamedplus'
 
 vim.opt.softtabstop = 2
 vim.opt.tabstop = 2
@@ -19,10 +23,14 @@ vim.opt.wrap = true
 nmap('j', 'gj')
 nmap('k', 'gk')
 
+nmap('<C-j>', ':cn<CR>')
+nmap('<C-k>', ':cp<CR>')
+nmap('<C-q>', ':ccl<CR>')
+
 nmap('Q', ':tabclose<CR>')
 
 vim.opt.hlsearch = true
-nmap(' ', ':nohlsearch<CR>')
+nmap('<space>', ':nohlsearch<CR>')
 
 vim.opt.foldenable = false
 vim.opt.foldnestmax = 4
@@ -47,19 +55,19 @@ if not vim.loop.fs_stat(lazypath) then
 end
 vim.opt.rtp:prepend(lazypath)
 
-function config_solarized()
+local function config_solarized()
   if vim.fn.has('termguicolors') == 1 then
     vim.opt.termguicolors = true
   end
 end
 
-function config_telescope()
+local function config_telescope()
   local builtin = require('telescope.builtin')
   nmap('<C-p>', builtin.find_files)
   nmap('<C-u>', builtin.live_grep)
 end
 
-function config_barbar()
+local function config_barbar()
   nmap('<C-y>', ':BufferPick<CR>')
   nmap('bd', ':BufferClose<CR>')
   nmap('bq', ':BufferClose!<CR>')
@@ -75,7 +83,7 @@ function config_barbar()
   nmap('b0', ':BufferLast<CR>')
 end
 
-function config_neotree()
+local function config_neotree()
   require('neo-tree').setup(
   { close_if_last_window = true,
     filesystem =
@@ -88,7 +96,44 @@ function config_neotree()
   nmap('<C-t>', ':Neotree reveal<CR>')
 end
 
-auto_dark_mode_opts =
+local function config_coc()
+  vim.opt.backup = false
+  vim.opt.writebackup = false
+
+  vim.opt.updatetime = 300
+
+  vim.opt.signcolumn = "yes"
+
+  local opts = {silent = true, noremap = true, expr = true, replace_keycodes = false}
+
+  function _G.check_back_space()
+    local col = vim.fn.col('.') - 1
+    return col == 0 or vim.fn.getline('.'):sub(col, col):match('%s') ~= nil
+  end
+  vim.keymap.set('i', '<tab>', 'coc#pum#visible() ? coc#pum#confirm() : v:lua.check_back_space() ? "<TAB>" : coc#refresh()', opts)
+
+  vim.keymap.set('i', '<C-space>', 'coc#refresh()', {silent = true, expr = true})
+
+  nmap('<C-d>', ':CocDiagnostics<CR>')
+  nmap('gd', '<Plug>(coc-definition)')
+  nmap('gy', '<Plug>(coc-type-definition)')
+  nmap('gi', '<Plug>(coc-implementation)')
+  nmap('gr', '<Plug>(coc-references)')
+
+  function _G.show_docs()
+    local cw = vim.fn.expand('<cword>')
+    if vim.fn.index({'vim', 'help'}, vim.bo.filetype) >= 0 then
+      vim.api.nvim_command('h ' .. cw)
+    elseif vim.api.nvim_eval('coc#rpc#ready()') then
+      vim.fn.CocActionAsync('doHover')
+    else
+      vim.api.nvim_command('!' .. vim.o.keywordprg .. ' ' .. cw)
+    end
+  end
+  nmap('K', '<CMD>lua _G.show_docs()<CR>')
+end
+
+local auto_dark_mode_opts =
 { update_interval = 1000,
   set_dark_mode = function()
     vim.api.nvim_set_option_value("background", "dark", {})
@@ -117,14 +162,17 @@ require('lazy').setup(
   { 'romgrk/barbar.nvim',
     dependencies =
     { 'nvim-tree/nvim-web-devicons' },
-    config = config_barbar, },
+    config = config_barbar },
   { 'nvim-neo-tree/neo-tree.nvim',
     dependencies = {
       'nvim-lua/plenary.nvim',
       'nvim-tree/nvim-web-devicons',
       'MunifTanjim/nui.nvim',
-      '3rd/image.nvim', },
+      '3rd/image.nvim' },
     config = config_neotree, },
+  { 'neoclide/coc.nvim',
+    branch = 'release',
+    config = config_coc },
 
   { 'sindrets/diffview.nvim',
     config = function()
