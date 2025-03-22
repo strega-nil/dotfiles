@@ -10,9 +10,12 @@
 	defaultBranch = main
 [fetch]
 	prune = true
+[merge]
+	ff = false
 [alias]
 	review = "!f() { git reset --hard \"$1\" && git reset --mixed \"$1^\"; }; f"
 	sign = "commit --amend --no-edit -S"
+	ff = "merge --ff"
 
 [tag]
 	sort = version:refname
