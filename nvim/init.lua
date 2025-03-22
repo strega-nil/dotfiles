@@ -23,10 +23,6 @@ vim.opt.wrap = true
 nmap('j', 'gj')
 nmap('k', 'gk')
 
-nmap('<C-j>', ':cn<CR>')
-nmap('<C-k>', ':cp<CR>')
-nmap('<C-q>', ':ccl<CR>')
-
 nmap('Q', ':tabclose<CR>')
 
 vim.opt.hlsearch = true
@@ -36,9 +32,11 @@ vim.opt.foldenable = false
 vim.opt.foldnestmax = 4
 
 vim.opt.ffs = { 'unix' , 'dos' }
-vim.opt.encoding = 'utf-8'
-vim.opt.fileencoding = 'utf-8'
 vim.opt.autoread = true
+
+if vim.fn.has('termguicolors') == 1 then
+  vim.opt.termguicolors = true
+end
 
 vim.cmd('autocmd BufRead,BufNewFile *.z80 set filetype=gbz80')
 
@@ -54,12 +52,6 @@ if not vim.loop.fs_stat(lazypath) then
   })
 end
 vim.opt.rtp:prepend(lazypath)
-
-local function config_solarized()
-  if vim.fn.has('termguicolors') == 1 then
-    vim.opt.termguicolors = true
-  end
-end
 
 local function config_telescope()
   local builtin = require('telescope.builtin')
@@ -88,11 +80,12 @@ local function config_neotree()
   { close_if_last_window = true,
     filesystem =
       { filtered_items =
-        { always_show = { ".gitignore" } } },
+        { always_show = { ".gitignore" , ".github" } } },
     hijack_netrw_behavior = "open_current",
     window =
     { mappings =
-      { ["P"] = { "toggle_preview", config = { use_float = false, use_image_nvim = true } }, }, }, })
+      { ["P"] = { "toggle_preview", config = { use_float = false, use_image_nvim = true } }, }, },
+    popup_border_style = "rounded" })
   nmap('<C-t>', ':Neotree reveal<CR>')
 end
 
@@ -133,6 +126,13 @@ local function config_coc()
   nmap('K', '<CMD>lua _G.show_docs()<CR>')
 end
 
+local function config_qf()
+  require('qf').setup({})
+  nmap('<C-j>', function() require("qf").next("visible") end)
+  nmap('<C-k>', function() require("qf").prev("visible") end)
+  nmap('<C-q>', function() require("qf").close("visible") end)
+end
+
 local auto_dark_mode_opts =
 { update_interval = 1000,
   set_dark_mode = function()
@@ -148,9 +148,8 @@ require('lazy').setup(
 {
   { 'lifepillar/vim-solarized8',
     branch = 'neovim',
-    lazy = false, -- load during startup, since it's our colorscheme
-    priority = 1000, -- load first
-    config = config_solarized, },
+    lazy = false,       -- load during startup, since it's our colorscheme
+    priority = 1000, }, -- load first 
   { 'f-person/auto-dark-mode.nvim',
     opts = auto_dark_mode_opts, },
 
@@ -173,6 +172,8 @@ require('lazy').setup(
   { 'neoclide/coc.nvim',
     branch = 'release',
     config = config_coc },
+  { 'ten3roberts/qf.nvim',
+    config = config_qf },
 
   { 'sindrets/diffview.nvim',
     config = function()
