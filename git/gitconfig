@@ -1,0 +1,41 @@
+# This is Git's per-user configuration file.
+[user]
+	name = Nicole Mazzuca
+	email = nicole@strega-nil.co
+	signingkey = 861E11A9B3E5C2ED
+[core]
+	editor = nvim
+	pager = delta
+[init]
+	defaultBranch = main
+[fetch]
+	prune = true
+[alias]
+	review = "!f() { git reset --hard \"$1\" && git reset --mixed \"$1^\"; }; f"
+	sign = "commit --amend --no-edit -S"
+
+[tag]
+	sort = version:refname
+[diff]
+	algorithm = histogram
+	colorMoved = plain
+	mnemonicPrefix = true
+	renames = true
+[push]
+	autoSetupRemote = true
+[commit]
+	verbose = true
+[rerere]
+	enabled = true
+	autoupdate = true
+[rebase]
+	autoSquash = true
+	autoStash = true
+[merge]
+	conflictstyle = zdiff3
+[interactive]
+	diffFilter = delta --color-only
+[delta]
+	navigate = true
+	side-by-side = true
+	keep-plus-minus-markers = false
