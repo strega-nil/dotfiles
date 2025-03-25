@@ -14,7 +14,7 @@ export EDITOR="$VISUAL"
 # set up gpg
 export GPG_TTY=`tty`
 gpgconf --launch gpg-agent
-if [ ! -e "$HOME/.config/misc/is-work" ]
+if [ ! -e "$HOME/.config/misc/is-work" ]; then
 	export SSH_AUTH_SOCK=`gpgconf --list-dirs agent-ssh-socket`
 fi
 
