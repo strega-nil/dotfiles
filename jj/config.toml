@@ -5,6 +5,7 @@ email = "nicole@strega-nil.co"
 [ui]
 show-cryptographic-signatures = true
 default-command = "status"
+conflict-marker-style = "snapshot"
 
 [[--scope]]
 --when.commands = ["diff", "show"]
@@ -16,11 +17,13 @@ diff.format = "git"
 log = "strega_log_comfortable"
 
 [revsets]
-log = "@ | ancestors(trunk()..(visible_heads() ~ untracked_remote_bookmarks() & mine()), 2) | trunk()"
+log = "@ | ancestors(trunk()..(visible_heads() ~ untracked_remote_bookmarks() & mine())) | trunk()"
 [revset-aliases]
 all = "@ | ancestors(trunk()..(visible_heads() & mine())) | trunk()"
-me  = "trunk()::@"
-all-me = "::@"
+
+[aliases]
+rebase-trunk = ["rebase", "-d", "trunk()"]
+logt = ["log", "-r", "trunk()::"]
 
 [signing]
 behavior = "drop"
@@ -32,6 +35,7 @@ sign-on-push = true
 
 [colors]
 'description title' = { bold = true }
+"bookmarks" = { fg = 'red', bold = true }
 
 [template-aliases]
 'format_short_change_id(id)' = 'label("change_id", stringify(id.shortest(8)))'
@@ -51,10 +55,10 @@ separate(" ",
 '''
 'strega_format_short_commit_meta(commit)' = '''
 separate(" ",
-  format_short_signature(commit.author()),
-  format_timestamp(commit_timestamp(commit)),
   commit.bookmarks(),
   commit.tags(),
+  format_short_signature(commit.author()),
+  format_timestamp(commit_timestamp(commit)),
   commit.working_copies(),
   if(commit.git_head(), label("git_head", "git_head()")),
   if(config("ui.show-cryptographic-signatures").as_boolean(),
