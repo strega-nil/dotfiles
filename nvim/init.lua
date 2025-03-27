@@ -80,7 +80,8 @@ local function config_neotree()
   { close_if_last_window = true,
     filesystem =
       { filtered_items =
-        { always_show = { ".gitignore" , ".github" } } },
+        { always_show = { ".gitignore" , ".github" },
+          hide_by_pattern = { "build*", "vcpkg_installed" } } },
     hijack_netrw_behavior = "open_current",
     window =
     { mappings =

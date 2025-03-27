@@ -7,6 +7,12 @@ fi
 if [ -d "$HOME/.local/bin" ]; then
 	export PATH="$PATH:$HOME/.local/bin"
 fi
+if [ -d "$HOME/.local/llvm/current/bin" ]; then
+	export PATH="$PATH:$HOME/.local/llvm/current/bin"
+fi
+if [ -d "$HOME/.local/ndk" ]; then
+	export PATH="$PATH:$HOME/.local/ndk/cmdline-tools/latest/bin"
+fi
 
 export VISUAL="nvim"
 export EDITOR="$VISUAL"

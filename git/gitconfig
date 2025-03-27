@@ -1,6 +1,6 @@
 # This is Git's per-user configuration file.
 [user]
-	name = Nicole Mazzuca
+	name = Nicole Patricia Mazzuca
 	email = nicole@strega-nil.co
 	signingkey = 861E11A9B3E5C2ED
 [core]
@@ -12,6 +12,8 @@
 	prune = true
 [merge]
 	ff = false
+[pull]
+	ff = only
 [alias]
 	review = "!f() { git reset --hard \"$1\" && git reset --mixed \"$1^\"; }; f"
 	sign = "commit --amend --no-edit -S"

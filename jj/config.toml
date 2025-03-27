@@ -1,0 +1,75 @@
+[user]
+name = "Nicole Patricia Mazzuca"
+email = "nicole@strega-nil.co"
+
+[ui]
+pager = "delta"
+show-cryptographic-signatures = true
+default-command = "status"
+[ui.diff]
+format = "git"
+
+[templates]
+log = "strega_log_comfortable"
+
+[revsets]
+log = "@ | ancestors(trunk()..(visible_heads() ~ untracked_remote_bookmarks() & mine()), 2) | trunk()"
+[revset-aliases]
+all = "@ | ancestors(trunk()..(visible_heads() & mine())) | trunk()"
+me  = "trunk()::@"
+all-me = "::@"
+
+[signing]
+behavior = "drop"
+backend = "gpg"
+key = "861E11A9B3E5C2ED"
+
+[git]
+sign-on-push = true
+
+[colors]
+'description title' = { bold = true }
+
+[template-aliases]
+'format_short_change_id(id)' = 'label("change_id", stringify(id.shortest(8)))'
+'format_short_commit_id(id)' = 'label("commit_id", stringify(id.shortest(8)))'
+
+'strega_format_short_commit_header(commit)' = '''
+separate(" ",
+  format_short_change_id_with_hidden_and_divergent_info(commit),
+  if(description,
+    label("description title", description.first_line()),
+    label(if(empty, "empty"), description_placeholder),
+  ),
+  if(empty, label("empty", "(empty)")),
+  format_short_commit_id(commit.commit_id()),
+  if(commit.conflict(), label("conflict", "conflict")),
+)
+'''
+'strega_format_short_commit_meta(commit)' = '''
+separate(" ",
+  format_short_signature(commit.author()),
+  format_timestamp(commit_timestamp(commit)),
+  commit.bookmarks(),
+  commit.tags(),
+  commit.working_copies(),
+  if(commit.git_head(), label("git_head", "git_head()")),
+  if(config("ui.show-cryptographic-signatures").as_boolean(),
+    format_short_cryptographic_signature(commit.signature())),
+)
+'''
+
+strega_log_compact = '''
+if(root,
+  format_root_commit(self),
+  label(if(current_working_copy, "working_copy"),
+    concat(
+      strega_format_short_commit_header(self),
+      "\n  ",
+      strega_format_short_commit_meta(self),
+      "\n",
+    ),
+  )
+)
+'''
+strega_log_comfortable = "strega_log_compact ++ '\n'"
