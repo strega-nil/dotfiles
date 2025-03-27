@@ -3,11 +3,14 @@ name = "Nicole Patricia Mazzuca"
 email = "nicole@strega-nil.co"
 
 [ui]
-pager = "delta"
 show-cryptographic-signatures = true
 default-command = "status"
-[ui.diff]
-format = "git"
+
+[[--scope]]
+--when.commands = ["diff", "show"]
+[--scope.ui]
+pager = "delta"
+diff.format = "git"
 
 [templates]
 log = "strega_log_comfortable"
