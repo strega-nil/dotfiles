@@ -15,15 +15,25 @@ diff.format = "git"
 
 [templates]
 log = "strega_log_comfortable"
+draft_commit_description = "commit_description_verbose"
 
 [revsets]
 log = "@ | ancestors(trunk()..(visible_heads() ~ untracked_remote_bookmarks() & mine())) | trunk()"
 [revset-aliases]
 all = "@ | ancestors(trunk()..(visible_heads() & mine())) | trunk()"
+HEAD = "coalesce(@ ~ description(exact:''), @-)"
 
 [aliases]
 rebase-trunk = ["rebase", "-d", "trunk()"]
 logt = ["log", "-r", "trunk()::"]
+# it would be nice if we had better aliases -.-
+update = ["util", "exec", "--", "sh", "-c", """
+if [ "x$1" = "x" ]; then
+  jj bookmark move --from "latest(::@ & bookmarks())" --to HEAD
+else
+  jj bookmark move --to HEAD "$1"
+fi
+""", ""]
 
 [signing]
 behavior = "drop"
@@ -80,3 +90,14 @@ if(root,
 )
 '''
 strega_log_comfortable = "strega_log_compact ++ '\n'"
+
+commit_description_verbose = '''
+concat(
+  description,
+  "\n",
+  "JJ: This commit contains the following changes:\n",
+  indent("JJ:    ", diff.stat(72)),
+  "JJ: ignore-rest\n",
+  diff.git(),
+)
+'''
