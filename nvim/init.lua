@@ -56,7 +56,9 @@ vim.opt.rtp:prepend(lazypath)
 local function config_telescope()
   local builtin = require('telescope.builtin')
   nmap('<C-p>', builtin.find_files)
-  nmap('<C-u>', builtin.live_grep)
+  nmap('<C-u>', function()
+    builtin.live_grep({ additional_args = { '--no-require-git' }})
+  end)
 end
 
 local function config_barbar()

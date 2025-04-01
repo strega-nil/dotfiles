@@ -2,20 +2,34 @@
 name = "Nicole Patricia Mazzuca"
 email = "nicole@strega-nil.co"
 
+[git]
+sign-on-push = true
+fetch = "origin"
+push = "origin"
+
 [ui]
 show-cryptographic-signatures = true
 default-command = "status"
 conflict-marker-style = "snapshot"
+
+[signing]
+behavior = "drop"
+backend = "gpg"
+key = "861E11A9B3E5C2ED"
+
+[colors]
+'description title' = { bold = true }
+"bookmarks" = { fg = 'red', bold = true }
+
+[templates]
+log = "strega_log_comfortable"
+draft_commit_description = "commit_description_verbose"
 
 [[--scope]]
 --when.commands = ["diff", "show"]
 [--scope.ui]
 pager = "delta"
 diff.format = "git"
-
-[templates]
-log = "strega_log_comfortable"
-draft_commit_description = "commit_description_verbose"
 
 [revsets]
 log = "@ | ancestors(trunk()..(visible_heads() ~ untracked_remote_bookmarks() & mine())) | trunk()"
@@ -31,21 +45,53 @@ update = ["util", "exec", "--", "sh", "-c", """
 if [ "x$1" = "x" ]; then
   jj bookmark move --from "latest(::@ & bookmarks())" --to HEAD
 else
-  jj bookmark move --to HEAD "$1"
+  jj bookmark move --to HEAD "$@"
 fi
 """, ""]
+push = ["util", "exec", "--", "sh", "-c", '''
+if [ "x$1" = "x" ]; then
+  export bookmark_names=`jj log --no-graph -r "latest((@ | @-) & bookmarks())" -T "bookmarks.map(|b| b.name()).join(' ')"`
+else
+  export bookmark_names="$1"
+fi
 
-[signing]
-behavior = "drop"
-backend = "gpg"
-key = "861E11A9B3E5C2ED"
+for bookmark in $bookmark_names; do
+  export remotes=`jj bookmark list $bookmark --tracked -T 'if(self.remote().len() != 0, self.remote() ++ "\n")'`
+  if [ "x$remotes" = "x" ]; then
+    echo >&2 "bookmark $bookmark doesn't have any remotes"
+    continue
+  fi
+  echo >&2 "pushing $bookmark to" $remotes
+  for remote in $remotes; do
+    jj git push -b $bookmark --remote $remote
+  done
+done
+''', ""]
+track = ["util", "exec", "--", "sh", "-c", '''
+if [ "x$1" = "x" ]; then
+  echo >&2 "first argument is necessary"
+end
 
-[git]
-sign-on-push = true
+if [ "x$2" = "x" ]; then
+  export bookmark_names=`jj log --no-graph -r "latest((@ | @-) & bookmarks())" -T "bookmarks.join(' ')"`
+else
+  export bookmark_names="$2"
+fi
 
-[colors]
-'description title' = { bold = true }
-"bookmarks" = { fg = 'red', bold = true }
+for bookmark in $bookmark_names; do
+  jj git push -b $bookmark --remote $1 --allow-new
+done
+''', ""]
+show-commit = ["util", "exec", "--", "sh", "-c", """
+if [ "x$1" = "x" ]; then
+  jj log --no-graph -r HEAD -T commit_id
+else
+  jj log --no-graph -T commit_id -r "$@"
+fi
+""", ""]
+copy-commit = ["util", "exec", "--", "sh", "-c", """
+jj show-commit "$@" | pbcopy
+""", ""]
 
 [template-aliases]
 'format_short_change_id(id)' = 'label("change_id", stringify(id.shortest(8)))'
