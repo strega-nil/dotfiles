@@ -10,7 +10,6 @@ push = "origin"
 [ui]
 show-cryptographic-signatures = true
 default-command = "status"
-conflict-marker-style = "snapshot"
 
 [signing]
 behavior = "drop"
@@ -32,7 +31,7 @@ pager = "delta"
 diff.format = "git"
 
 [revsets]
-log = "@ | ancestors(trunk()..(visible_heads() ~ untracked_remote_bookmarks() & mine())) | trunk()"
+log = "::@"
 [revset-aliases]
 all = "@ | ancestors(trunk()..(visible_heads() & mine())) | trunk()"
 HEAD = "coalesce(@ ~ description(exact:''), @-)"
@@ -40,6 +39,7 @@ HEAD = "coalesce(@ ~ description(exact:''), @-)"
 [aliases]
 rebase-trunk = ["rebase", "-d", "trunk()"]
 logt = ["log", "-r", "trunk()::"]
+tree = ["log", "-r", "@ | ancestors((visible_heads() ~ untracked_remote_bookmarks()) & mine())"]
 # it would be nice if we had better aliases -.-
 update = ["util", "exec", "--", "sh", "-c", """
 if [ "x$1" = "x" ]; then
@@ -70,7 +70,7 @@ done
 track = ["util", "exec", "--", "sh", "-c", '''
 if [ "x$1" = "x" ]; then
   echo >&2 "first argument is necessary"
-end
+fi
 
 if [ "x$2" = "x" ]; then
   export bookmark_names=`jj log --no-graph -r "latest((@ | @-) & bookmarks())" -T "bookmarks.join(' ')"`
@@ -91,6 +91,13 @@ fi
 """, ""]
 copy-commit = ["util", "exec", "--", "sh", "-c", """
 jj show-commit "$@" | pbcopy
+""", ""]
+format-patch = ["util", "exec", "--", "sh", "-c", """
+if [ "x$1" = "x" ]; then
+  jj log --no-graph -r HEAD -T 'format_patch(self)'
+else
+  jj log --no-graph -T 'format_patch(self)' -r "$@"
+fi
 """, ""]
 
 [template-aliases]
@@ -136,6 +143,24 @@ if(root,
 )
 '''
 strega_log_comfortable = "strega_log_compact ++ '\n'"
+
+'git_format_patch_header(change)' = '''
+separate("\n",
+  concat("From ", change.commit_id(), " Mon Sep 17 00:00:00 2001"),
+  concat("From: ", change.committer()),
+  concat("Date: ", commit_timestamp(change).format("%a, %-d %b %Y %T %z")),
+  concat("Subject: [PATCH] ", change.description()))
+'''
+'format_patch(change)' = '''
+separate("\n",
+  git_format_patch_header(change),
+  "---",
+  change.diff().stat(),
+  "",
+  change.diff().git(),
+  "--",
+  "jj 0.27.0")
+'''
 
 commit_description_verbose = '''
 concat(
