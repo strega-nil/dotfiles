@@ -38,7 +38,7 @@ HEAD = "coalesce(@ ~ description(exact:''), @-)"
 
 [aliases]
 rebase-trunk = ["rebase", "-d", "trunk()"]
-logt = ["log", "-r", "trunk()::"]
+logb = ["log", "-r", "trunk()::@"]
 tree = ["log", "-r", "@ | ancestors((visible_heads() ~ untracked_remote_bookmarks()) & mine())"]
 # it would be nice if we had better aliases -.-
 update = ["util", "exec", "--", "sh", "-c", """
