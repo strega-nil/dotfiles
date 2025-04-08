@@ -136,25 +136,20 @@ local function config_qf()
   nmap('<C-q>', function() require("qf").close("visible") end)
 end
 
-local auto_dark_mode_opts =
-{ update_interval = 1000,
-  set_dark_mode = function()
-    vim.api.nvim_set_option_value("background", "dark", {})
-    vim.cmd("colorscheme solarized8_high")
-  end,
-  set_light_mode = function()
-    vim.api.nvim_set_option_value("background", "light", {})
-    vim.cmd("colorscheme solarized8_high")
-  end }
 
 require('lazy').setup(
 {
   { 'lifepillar/vim-solarized8',
     branch = 'neovim',
     lazy = false,       -- load during startup, since it's our colorscheme
-    priority = 1000, }, -- load first 
+    priority = 1000,    -- load first 
+    config = function()
+      vim.cmd("colorscheme solarized8_high")
+    end },
   { 'f-person/auto-dark-mode.nvim',
-    opts = auto_dark_mode_opts, },
+    opts = {
+      update_interval = 1000,
+      fallback = "light" } },
 
   { 'nvim-telescope/telescope.nvim',
     tag = '0.1.8',

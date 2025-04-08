@@ -18,7 +18,7 @@ function fish_jj_prompt
     -r "@" -T "change_id.shortest()")
   set current_branch (jj log --color=always --no-graph \
     -r "latest(($prompt_bookmark_revset) & bookmarks())" \
-    -T "bookmarks.join(' ')")
+    -T "local_bookmarks.join(' ')")
   if test -n "$current_branch"
     echo " ($current_head|$current_branch)"
   else
